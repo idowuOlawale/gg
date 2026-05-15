@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Facebook – log in or sign up</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: #fff;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .topbar {
+      width: 100%;
+      text-align: center;
+      padding: 20px 16px 0;
+      font-size: 14px;
+      color: #65676b;
+    }
+
+    .logo-wrap {
+      margin-top: 40px;
+      margin-bottom: 45px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .fb-logo-img {
+      width: 80px;
+      height: 80px;
+      object-fit: contain;
+    }
+
+    .content {
+      width: 100%;
+      max-width: 480px;
+      padding: 0 24px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    input[type="text"],
+    input[type="password"] {
+      width: 100%;
+      padding: 18px 16px;
+      border: 1px solid #ccd0d5;
+      border-radius: 16px;
+      font-size: 16px;
+      color: #1c1e21;
+      outline: none;
+      background: #fff;
+      transition: border-color 0.15s;
+      font-family: inherit;
+      -webkit-appearance: none;
+    }
+
+    input::placeholder { color: #8d949e; }
+
+    input:focus {
+      border-color: #1877f2;
+    }
+
+    .btn-login {
+      width: 100%;
+      padding: 14px;
+      background: #2365de;
+      color: #fff;
+      font-size: 16px;
+      font-weight: 600;
+      border: none;
+      border-radius: 24px;
+      cursor: pointer;
+      margin-bottom: 24px;
+      transition: background 0.15s;
+      font-family: inherit;
+    }
+    .btn-login:hover { background: #1b54c0; }
+
+    .forgot {
+      text-align: center;
+      font-size: 15px;
+      font-weight: 500;
+      color: #050505;
+      text-decoration: none;
+      display: block;
+      margin-bottom: 40px;
+    }
+
+    .spacer { flex: 1; min-height: 40px; }
+
+    .btn-create {
+      width: 100%;
+      padding: 12px;
+      background: #fff;
+      color: #2365de;
+      font-size: 15px;
+      font-weight: 500;
+      border: 1.5px solid #2365de;
+      border-radius: 24px;
+      cursor: pointer;
+      margin-bottom: 24px;
+      transition: background 0.12s;
+      font-family: inherit;
+    }
+    .btn-create:hover { background: #f5f6f7; }
+
+    .footer {
+      width: 100%;
+      padding: 0 16px 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .meta-brand {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      text-decoration: none;
+      color: #4b4f56;
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: -0.2px;
+    }
+
+    .meta-logo-img {
+      height: 18px;
+      object-fit: contain;
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 12px;
+      font-size: 12px;
+    }
+    .footer-links a {
+      color: #8a8d91;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="topbar">English (UK)</div>
+
+  <div class="logo-wrap">
+    <img class="fb-logo-img" src="https://upload.wikimedia.org/wikipedia/commons/0/05/Facebook_Logo_%282019%29.png" alt="Facebook">
+  </div>
+
+  <div class="content">
+    <div class="input-group">
+      <input type="text" placeholder="Mobile number or email address" autocomplete="username" />
+      <input type="password" placeholder="Password" autocomplete="current-password" />
+    </div>
+
+    <button class="btn-login">Log in</button>
+
+    <a class="forgot" href="#">Forgotten password?</a>
+
+    <div class="spacer"></div>
+
+    <button class="btn-create">Create new account</button>
+  </div>
+
+  <div class="footer">
+    <a class="meta-brand" href="#">
+      <img class="meta-logo-img" src="https://upload.wikimedia.org/wikipedia/commons/0/05/Meta_Platforms_Inc._logo_%28cropped%29.svg?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original" alt="Meta">
+      <span>Meta</span>
+    </a>
+
+    <div class="footer-links">
+      <a href="#">About</a>
+      <a href="#">Help</a>
+      <a href="#">More</a>
+    </div>
+  </div>
+
+</body>
+</html>
