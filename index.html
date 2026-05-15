@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Weather — Modern & Beautiful</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+    :root{--bg1:#e6f0ff;--bg2:#f7fbff;--card:#ffffff;--accent:#0b76ff;--muted:#556077}
+    html,body{height:100%;margin:0;font-family:Inter,Segoe UI,system-ui,Arial,sans-serif;background:linear-gradient(180deg,var(--bg1),var(--bg2));color:#0f172a}
+    .wrap{max-width:920px;margin:36px auto;padding:24px}
+    .card{background:var(--card);border-radius:14px;box-shadow:0 10px 30px rgba(11,23,50,0.06);padding:22px}
+    header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+    h1{margin:0;font-size:22px}
+    p.lead{margin:6px 0 0;color:var(--muted);font-size:14px}
+    .search{display:flex;gap:10px;margin-top:16px}
+    input[type="search"]{flex:1;padding:12px 14px;border:1px solid #e6eefc;border-radius:10px;font-size:15px;box-shadow:inset 0 1px 0 rgba(255,255,255,0.6)}
+    button{background:var(--accent);color:white;border:none;padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:600}
+    button[disabled]{opacity:.6;cursor:not-allowed}
+    .cities{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+    .city-btn{background:#f1f7ff;border:1px solid rgba(11,118,255,0.08);padding:8px 10px;border-radius:999px;cursor:pointer;color:#0747a6;font-weight:600;font-size:13px}
+    .city-btn:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(11,118,255,0.08)}
+    .result{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;margin-top:18px}
+    .location{font-weight:700;font-size:18px}
+    .descRow{display:flex;gap:8px;align-items:center;margin-top:6px}
+    .chip{background:#f7f9ff;padding:6px 10px;border-radius:999px;color:var(--muted);font-size:13px}
+    .temp{font-size:48px;font-weight:800;color:var(--accent)}
+    .meta{color:var(--muted);font-size:14px}
+    .small{font-size:13px;color:var(--muted)}
+    footer{margin-top:18px;text-align:center;color:var(--muted);font-size:13px}
+    @media (max-width:720px){.result{grid-template-columns:1fr} .temp{font-size:34px}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Simple Weather</h1>
+      <p class="lead">Search a city to see current weather. Uses free geocoding (Nominatim) and Open‑Meteo (no API key).</p>
+
+      <div class="search">
+        <input id="q" type="search" placeholder="Enter city name (e.g. Lagos)" />
+        <button id="btn">Get Weather</button>
+      </div>
+
+      <div class="cities" aria-hidden="false" title="Quick cities">
+        <button class="city-btn">Lagos</button>
+        <button class="city-btn">London</button>
+        <button class="city-btn">New York</button>
+        <button class="city-btn">Tokyo</button>
+        <button class="city-btn">Paris</button>
+        <button class="city-btn">Mumbai</button>
+        <button class="city-btn">Sydney</button>
+        <button class="city-btn">Cairo</button>
+      </div>
+
+      <div id="msg" class="small" style="margin-top:10px"></div>
+
+      <div id="out" style="display:none" class="result">
+        <div>
+          <div class="location" id="loc"></div>
+          <div class="descRow"><div class="meta" id="desc"></div><div class="chip" id="time"></div></div>
+          <div style="margin-top:8px" class="meta">Wind: <span id="wind"></span> • Direction: <span id="winddir"></span></div>
+        </div>
+        <div style="text-align:right">
+          <div class="temp" id="temp"></div>
+          <div class="small" id="units">°C</div>
+        </div>
+      </div>
+
+      <div id="raw" class="small" style="margin-top:12px;color:var(--muted);display:none"></div>
+      <footer>Data from Open‑Meteo • Geocoding via Nominatim</footer>
+    </div>
+  </div>
+
+  <script>
+    const btn = document.getElementById('btn');
+    const q = document.getElementById('q');
+    const msg = document.getElementById('msg');
+    const out = document.getElementById('out');
+    const loc = document.getElementById('loc');
+    const desc = document.getElementById('desc');
+    const temp = document.getElementById('temp');
+    const wind = document.getElementById('wind');
+    const winddir = document.getElementById('winddir');
+    const raw = document.getElementById('raw');
+
+    function setMsg(t){msg.textContent = t}
+
+    const weatherCodes = {
+      0: 'Clear sky',1:'Mainly clear',2:'Partly cloudy',3:'Overcast',
+      45:'Fog',48:'Depositing rime fog',
+      51:'Light drizzle',53:'Moderate drizzle',55:'Dense intensity drizzle',
+      56:'Freezing drizzle',57:'Dense freezing drizzle',
+      61:'Slight rain',63:'Moderate rain',65:'Heavy rain',
+      66:'Freezing rain',67:'Heavy freezing rain',
+      71:'Slight snow',73:'Moderate snow',75:'Heavy snow',
+      77:'Snow grains',80:'Slight rain showers',81:'Moderate rain showers',82:'Violent rain showers',
+      85:'Slight snow showers',86:'Heavy snow showers',
+      95:'Thunderstorm',96:'Thunderstorm with slight hail',99:'Thunderstorm with heavy hail'
+    };
+
+    function degToCompass(num){const val=Math.floor((num/22.5)+0.5);const arr=['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];return arr[(val%16)];}
+
+    async function geocode(query){
+      const url = 'https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(query);
+      const res = await fetch(url, {headers:{'Accept':'application/json'}});
+      if(!res.ok) throw new Error('Geocoding failed');
+      const data = await res.json();
+      if(!data || data.length===0) return null;
+      return data[0];
+    }
+
+    async function fetchWeather(lat, lon){
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&timezone=auto`;
+      const res = await fetch(url);
+      if(!res.ok) throw new Error('Weather fetch failed');
+      return res.json();
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="utf-8" />
+      <meta name="viewport" content="width=device-width,initial-scale=1" />
+      <title>Weather — Modern</title>
+      <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+        :root{
+          --bg1:#eef6ff; --bg2:#f8fbff; --card:#ffffff; --accent:#0b76ff; --muted:#6b7280; --glass:rgba(255,255,255,0.7)
+        }
+        *{box-sizing:border-box}
+        html,body{height:100%;margin:0;font-family:Inter,Segoe UI,system-ui,Arial,sans-serif;background:linear-gradient(180deg,var(--bg1),var(--bg2));color:#0b1220;-webkit-font-smoothing:antialiased}
+        .wrap{max-width:980px;margin:40px auto;padding:20px}
+        header.card{display:flex;align-items:center;justify-content:space-between;padding:18px;border-radius:14px;background:linear-gradient(180deg,var(--glass),rgba(255,255,255,0.85));box-shadow:0 8px 28px rgba(11,23,50,0.06)}
+        .title{display:flex;flex-direction:column}
+        h1{margin:0;font-size:20px}
+        p.lead{margin:6px 0 0;color:var(--muted);font-size:13px}
+        .controls{display:flex;gap:12px;align-items:center}
+        .search{display:flex;gap:10px}
+        input[type="search"]{width:320px;max-width:36vw;padding:12px 14px;border-radius:12px;border:1px solid rgba(11,118,255,0.08);font-size:14px;background:white}
+        button, .btn{background:var(--accent);color:white;border:none;padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:600}
+        .btn.secondary{background:transparent;color:var(--accent);border:1px solid rgba(11,118,255,0.12)}
+        main.card{margin-top:16px;padding:22px;border-radius:14px}
+        .city-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+        .city-btn{background:#f1f7ff;border:1px solid rgba(11,118,255,0.08);padding:8px 12px;border-radius:999px;cursor:pointer;color:#0747a6;font-weight:700;font-size:13px}
+        .city-btn:hover{transform:translateY(-2px)}
+        .weather-grid{display:grid;grid-template-columns:1fr 220px;gap:18px;align-items:center}
+        .weather-main{display:flex;gap:18px;align-items:center}
+        .icon-circle{width:120px;height:120px;border-radius:18px;background:linear-gradient(180deg,rgba(11,118,255,0.12),rgba(11,118,255,0.06));display:flex;align-items:center;justify-content:center;flex-shrink:0}
+        .temp{font-size:48px;font-weight:800;color:var(--accent)}
+        .loc{font-weight:700;font-size:16px}
+        .desc{color:var(--muted);margin-top:6px}
+        .details{display:flex;flex-direction:column;gap:8px}
+        .meta-grid{display:flex;gap:12px;flex-wrap:wrap;margin-top:12px}
+        .meta{background:#f7f9ff;padding:8px 12px;border-radius:10px;color:var(--muted);font-size:13px}
+        .footer{margin-top:18px;text-align:center;color:var(--muted);font-size:13px}
+        @media (max-width:760px){
+          .weather-grid{grid-template-columns:1fr}
+          input[type="search"]{width:100%}
+          .icon-circle{width:96px;height:96px}
+        }
+      </style>
+    </head>
+    <body>
+      <div class="wrap">
+        <header class="card">
+          <div class="title">
+            <h1>Weather</h1>
+            <p class="lead">Modern weather view — quick cities and detailed metrics.</p>
+          </div>
+
+          <div class="controls">
+            <div class="search">
+              <input id="q" type="search" placeholder="Search city (e.g. Lagos)" aria-label="Search city" />
+              <button id="btn" class="btn">Get</button>
+            </div>
+            <button id="unitBtn" class="btn secondary">°C</button>
+          </div>
+        </header>
+
+        <main class="card">
+          <div class="city-row">
+            <button class="city-btn">Lagos</button>
+            <button class="city-btn">London</button>
+            <button class="city-btn">New York</button>
+            <button class="city-btn">Tokyo</button>
+            <button class="city-btn">Paris</button>
+            <button class="city-btn">Mumbai</button>
+            <button class="city-btn">Sydney</button>
+            <button class="city-btn">Cairo</button>
+          </div>
+
+          <div id="msg" class="small" style="margin-top:12px;color:var(--muted)"></div>
+
+          <section style="margin-top:18px">
+            <div class="weather-grid">
+              <div>
+                <div class="weather-main">
+                  <div class="icon-circle" id="icon"></div>
+                  <div class="details">
+                    <div class="loc" id="loc">—</div>
+                    <div style="display:flex;align-items:center;gap:12px">
+                      <div class="temp" id="temp">—</div>
+                      <div class="desc" id="desc">—</div>
+                    </div>
+                    <div class="desc" id="time">Local time • —</div>
+                  </div>
+                </div>
+                <div class="meta-grid" id="metaGrid" style="margin-top:12px;display:none">
+                  <div class="meta" id="wind">Wind: —</div>
+                  <div class="meta" id="humidity">Humidity: —</div>
+                  <div class="meta" id="pressure">Pressure: —</div>
+                  <div class="meta" id="cloud">Cloud: —</div>
+                </div>
+              </div>
+
+              <aside style="text-align:right">
+                <div style="font-size:13px;color:var(--muted);margin-bottom:8px">Sunrise / Sunset</div>
+                <div style="font-weight:700;font-size:15px" id="sun">— / —</div>
+                <div style="margin-top:18px;color:var(--muted);font-size:13px">Raw data</div>
+                <pre id="raw" style="background:#f7f9ff;padding:10px;border-radius:8px;margin-top:8px;display:none;overflow:auto;max-height:160px;font-size:12px;color:#243b53"></pre>
+              </aside>
+            </div>
+          </section>
+
+          <div class="footer">Data provided by Open‑Meteo • Geocoding by Nominatim</div>
+        </main>
+      </div>
+
+      <script>
+        // Elements
+        const btn = document.getElementById('btn');
+        const q = document.getElementById('q');
+        const msg = document.getElementById('msg');
+        const locEl = document.getElementById('loc');
+        const descEl = document.getElementById('desc');
+        const tempEl = document.getElementById('temp');
+        const iconEl = document.getElementById('icon');
+        const timeEl = document.getElementById('time');
+        const rawEl = document.getElementById('raw');
+        const unitBtn = document.getElementById('unitBtn');
+        const metaGrid = document.getElementById('metaGrid');
+        const windEl = document.getElementById('wind');
+        const humidityEl = document.getElementById('humidity');
+        const pressureEl = document.getElementById('pressure');
+        const cloudEl = document.getElementById('cloud');
+        const sunEl = document.getElementById('sun');
+
+        let unit = 'C'; // or 'F'
+        unitBtn.addEventListener('click', ()=>{ unit = unit === 'C' ? 'F' : 'C'; unitBtn.textContent = unit === 'C' ? '°C' : '°F'; if (lastWeather) renderWeather(lastWeather); });
+
+        function setMsg(t){msg.textContent = t}
+
+        const weatherCodes = {
+          0: ['Clear sky','☀️'],1:['Mainly clear','🌤️'],2:['Partly cloudy','⛅'],3:['Overcast','☁️'],
+          45:['Fog','🌫️'],48:['Depositing rime fog','🌫️'],
+          51:['Light drizzle','🌦️'],53:['Moderate drizzle','🌦️'],55:['Dense drizzle','🌧️'],
+          56:['Freezing drizzle','🌧️❄️'],57:['Dense freezing drizzle','🌧️❄️'],
+          61:['Slight rain','🌧️'],63:['Moderate rain','🌧️'],65:['Heavy rain','⛈️'],
+          66:['Freezing rain','🌧️❄️'],67:['Heavy freezing rain','🌧️❄️'],
+          71:['Slight snow','🌨️'],73:['Moderate snow','🌨️'],75:['Heavy snow','❄️'],
+          77:['Snow grains','❄️'],80:['Rain showers','🌦️'],81:['Moderate showers','🌧️'],82:['Violent showers','⛈️'],
+          85:['Slight snow showers','🌨️'],86:['Heavy snow showers','❄️'],
+          95:['Thunderstorm','⛈️'],96:['Thunderstorm with hail','⛈️'],99:['Thunderstorm with heavy hail','⛈️']
+        };
+
+        function degToCompass(num){const val=Math.floor((num/22.5)+0.5);const arr=['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];return arr[(val%16)];}
+        function cToF(c){return Math.round((c*9/5)+32)}
+        function kmhToMph(k){return Math.round(k/1.609)}
+
+        async function geocode(query){
+          const url = 'https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(query);
+          const res = await fetch(url, {headers:{'Accept':'application/json'}});
+          if(!res.ok) throw new Error('Geocoding failed');
+          const data = await res.json();
+          if(!data || data.length===0) return null;
+          return data[0];
+        }
+
+        async function fetchWeather(lat, lon){
+          const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=relativehumidity_2m,pressure_msl,cloudcover&daily=sunrise,sunset&timezone=auto`;
+          const res = await fetch(url);
+          if(!res.ok) throw new Error('Weather fetch failed');
+          return res.json();
+        }
+
+        let lastWeather = null;
+        function renderWeather(data){
+          lastWeather = data;
+          const place = data.place;
+          const w = data.weather;
+          const c = w.current_weather;
+          locEl.textContent = place.display_name.split(',')[0];
+          const code = c.weathercode;
+          const wc = weatherCodes[code] || ['Unknown','❓'];
+          descEl.textContent = wc[0];
+          iconEl.innerHTML = `<div style='font-size:44px'>${wc[1]}</div>`;
+
+          // temperature
+          let t = Math.round(c.temperature);
+          if(unit === 'F') t = cToF(c.temperature);
+          tempEl.textContent = t + '°';
+          unitBtn.textContent = unit === 'C' ? '°C' : '°F';
+
+          // timezone local time
+          if (data.weather.timezone) {
+            try{
+              const tz = data.weather.timezone;
+              const now = new Date();
+              const local = now.toLocaleString('en-GB', {timeZone: tz});
+              timeEl.textContent = 'Local time • ' + local.split(',')[1]?.trim();
+            }catch(e){timeEl.textContent='Local time • —'}
+          }
+
+          // humidity/pressure/cloud from hourly arrays
+          try{
+            const idx = w.hourly.time.indexOf(c.time);
+            const humidity = (idx>=0 && w.hourly.relativehumidity_2m[idx]!=null) ? w.hourly.relativehumidity_2m[idx] : null;
+            const pressure = (idx>=0 && w.hourly.pressure_msl[idx]!=null) ? w.hourly.pressure_msl[idx] : null;
+            const cloud = (idx>=0 && w.hourly.cloudcover[idx]!=null) ? w.hourly.cloudcover[idx] : null;
+
+            humidityEl.textContent = 'Humidity: ' + (humidity!=null ? humidity + '%' : '—');
+            pressureEl.textContent = 'Pressure: ' + (pressure!=null ? pressure + ' hPa' : '—');
+            cloudEl.textContent = 'Cloud: ' + (cloud!=null ? cloud + '%' : '—');
+          }catch(e){humidityEl.textContent='Humidity: —'; pressureEl.textContent='Pressure: —'; cloudEl.textContent='Cloud: —'}
+
+          // wind
+          const ws = c.windspeed;
+          const wd = Math.round(c.winddirection);
+          windEl.textContent = 'Wind: ' + (unit==='C' ? ws + ' km/h' : kmhToMph(ws) + ' mph') + ' • ' + degToCompass(wd) + ' ('+wd+'°)';
+
+          // sunrise/sunset
+          try{
+            const sr = w.daily.sunrise[0];
+            const ss = w.daily.sunset[0];
+            sunEl.textContent = sr.split('T')[1].slice(0,5) + ' / ' + ss.split('T')[1].slice(0,5);
+          }catch(e){sunEl.textContent='— / —'}
+
+          metaGrid.style.display = 'flex';
+          rawEl.style.display = 'block';
+          rawEl.textContent = JSON.stringify({place:place, current:c, hourly:{humidity:w.hourly.relativehumidity_2m? 'available':'-', pressure:w.hourly.pressure_msl? 'available':'-' }}, null, 2);
+          setMsg('Updated');
+        }
+
+        async function showWeather(){
+          const query = q.value.trim();
+          if(!query){setMsg('Please enter a city');return}
+          setMsg('Looking up...');
+          try{
+            const place = await geocode(query);
+            if(!place){setMsg('Location not found');return}
+            setMsg('Loading weather for ' + place.display_name.split(',')[0]);
+            const w = await fetchWeather(place.lat, place.lon);
+            if(!w || !w.current_weather){setMsg('No weather data');return}
+            renderWeather({place:place, weather:w});
+          }catch(err){setMsg(err.message)}
+        }
+
+        // city quick buttons
+        document.querySelectorAll('.city-btn').forEach(b=>b.addEventListener('click', ()=>{ q.value = b.textContent; showWeather(); }));
+
+        btn.addEventListener('click', showWeather);
+        q.addEventListener('keydown', e=>{ if(e.key === 'Enter') showWeather(); });
+
+        // set focus
+        q.focus();
+      </script>
+    </body>
+    </html>
